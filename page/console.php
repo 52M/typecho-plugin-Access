@@ -254,7 +254,7 @@ $(document).ready(function() {
     $('a[data-action="ip"]').click(function() {
         swal({   
             title: "IP查询中...",   
-            text: '正在请求Taobao API...',   
+            text: '正在查询...',   
             type: "info",  
             confirmButtonText: "OK" 
         });
@@ -267,14 +267,14 @@ $(document).ready(function() {
                 if (data.code == 0) {
                     swal({   
                         title: "IP查询成功",   
-                        text: data.data.country + data.data.area + data.data.city + data.data.country + data.data.isp,   
+                        text: data.data,   
                         type: "success",  
                         confirmButtonText: "OK" 
                         });               
                 } else {
                     swal({   
                         title: "IP查询失败",   
-                        text: '接口返回状态码错误',   
+                        text: data.data,   
                         type: "warning",  
                         confirmButtonText: "OK" 
                         }); 
@@ -314,7 +314,7 @@ $(document).ready(function() {
                     return swal("错误", "你并没有勾选任何内容", "warning");
                 }
                 $.ajax({
-                    url: '<?php echo rtrim(Helper::options()->index, '/').'/access/log/delete';?>',
+                    url: '<?php echo rtrim(Helper::options()->index, '/').'/access/log/delete.json';?>',
                     method: 'post',
                     dataType: 'json',
                     contentType: 'application/json',
@@ -326,12 +326,12 @@ $(document).ready(function() {
                                 $('.typecho-list-table tbody tr[data-id="' + elem + '"]').fadeOut(500).remove();
                             });
                         } else {
-                            swal({   
-                                title: "错误",   
-                                text: '发生错误了',   
-                                type: "warning",  
-                                confirmButtonText: "OK" 
-                                }); 
+                            swal({
+                                title: "错误",
+                                text: '发生错误了',
+                                type: "warning",
+                                confirmButtonText: "OK"
+                            }); 
                         }
                     }
                 });
@@ -399,7 +399,7 @@ $(document).ready(function() {
 
 </script>
 <?php endif;?>
-<?php if ($access->config->cancanAnalytize == 1):?>
+<?php if ($access->config->canAnalytize == 1):?>
 <script type="text/javascript">
   var _paq = _paq || [];
   _paq.push(['trackPageView']);

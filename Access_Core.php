@@ -9,6 +9,7 @@ class Access_Core
     protected $prefix;
     protected $table;
     public $config;
+    protected $response;
     protected $request;
     protected $pageSize;
     protected $isDrop;
@@ -25,6 +26,7 @@ class Access_Core
         $this->prefix = $this->db->getPrefix();
         $this->table = $this->prefix . 'access';
         $this->config = Typecho_Widget::widget('Widget_Options')->plugin('Access');
+        $this->response = Typecho_Response::getInstance();
         $this->request = Typecho_Request::getInstance();
         $this->pageSize = $this->config->pageSize;
         $this->isDrop = $this->config->isDrop;
@@ -82,6 +84,8 @@ class Access_Core
 
         $this->logs['list'] = $this->db->fetchAll("SELECT * FROM {$this->table} {$where} ORDER BY id DESC LIMIT {$this->pageSize} OFFSET {$offset}");
 
+        $this->cleanArray($this->logs['list']);
+
         $this->logs['rows'] = count($this->db->fetchAll("SELECT * FROM {$this->table} {$where}"));
 
         $page = new Access_Page($this->pageSize, $this->logs['rows'], $p, 10, array(
@@ -96,6 +100,7 @@ class Access_Core
     {
         $this->referer['url'] = $this->db->fetchAll("SELECT DISTINCT referer, COUNT(*) as count FROM {$this->table} WHERE referer <> '' GROUP BY referer ORDER BY count DESC LIMIT {$this->pageSize}");
         $this->referer['domain'] = $this->db->fetchAll("SELECT DISTINCT referer_domain, COUNT(*) as count FROM {$this->table} WHERE referer_domain <> '' GROUP BY referer_domain ORDER BY count DESC LIMIT {$this->pageSize}");
+        $this->cleanArray($this->referer);
     }
 
     protected function parseOverview()
@@ -146,6 +151,19 @@ class Access_Core
 
     }
 
+    protected function cleanArray(&$array)
+    {
+        if (is_array($array)) {
+            foreach ($array as &$value) {
+                if (!is_array($value)) {
+                    $value = htmlspecialchars(urldecode($value));
+                } else {
+                    $this->cleanArray($value);
+                }
+            }
+        }
+    }
+
     protected function buildObject($array, $quote)
     {
         $obj = Json::encode($array);
@@ -174,6 +192,52 @@ class Access_Core
                     ->where('id = ?', $id)
             );
         }
+    }
+
+    public function getReferer()
+    {
+        $referer = Typecho_Cookie::get('__typecho_access_referer');
+        if ($referer == null) {
+            $referer = $this->request->getReferer();
+            if (strpos($referer, rtrim(Helper::options()->siteUrl, '/')) !== false) {
+                $referer = null;
+            }
+            if ($referer != null) {
+                Typecho_Cookie::set('__typecho_access_referer', $referer);
+            }
+        }
+        return $referer;
+    }
+
+    public function writeLogs($url = null)
+    {
+        if ($this->isAdmin()) {
+            return;
+        }
+        $ip = $this->request->getIp();
+        if ($url == null) {
+            $url = $this->request->getServer('REQUEST_URI');
+        }
+        if ($ip == null) {
+            $ip = 'UnKnown';
+        }
+
+        $timeStamp = Helper::options()->gmtTime;
+        $offset = Helper::options()->timezone - Helper::options()->serverTimezone;
+        $gtime = $timeStamp + $offset;
+        $referer = $this->getReferer();
+        $rows = array(
+            'ua' => $this->request->getAgent(),
+            'url' => $url,
+            'ip' => $ip,
+            'referer' => $referer,
+            'referer_domain' => parse_url($referer, PHP_URL_HOST),
+            'date' => $gtime,
+        );
+
+        try {
+            $this->db->query($this->db->insert('table.access')->rows($rows));
+        } catch (Exception $e) {} catch (Typecho_Db_Query_Exception $e) {}
     }
 
 }
